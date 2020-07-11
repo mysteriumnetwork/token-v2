@@ -1,0 +1,32 @@
+{
+    "name": "myst-token-v2",
+    "version": "2.0.0",
+    "description": "MYST token is a native token of Mysterium Network.",
+    "main": "index.js",
+    "scripts": {
+        "test": "truffle test",
+        "compile": "truffle compile",
+        "migrate": "truffle migrate",
+        "deploy": "truffle deploy --network goerli"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/mysteriumnetwork/token-v2.git"
+    },
+    "keywords": [
+        "erc777",
+        "erc20",
+        "mysterium",
+        "ethereum",
+        "token"
+    ],
+    "author": "Jaro Satkevic <jaro@mysterium.network>",
+    "license": "GPL-3.0-or-later",
+    "bugs": {
+        "url": "https://github.com/mysteriumnetwork/token-v2/issues"
+    },
+    "homepage": "https://github.com/mysteriumnetwork/token-v2#readme",
+    "dependencies": {
+        "truffle": "^5.1.34"
+    }
+}
