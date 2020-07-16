@@ -28,7 +28,7 @@ const states = {
 }
 
 contract('Original to new token migration', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
-    let token, originalToken, tokenSupply, multisig
+    let token, originalToken, tokenSupply
     before(async () => {
         originalToken = await OriginalMystToken.new()
         await originalToken.mint(addressOne, OneToken)
@@ -110,25 +110,25 @@ contract('Original to new token migration', ([txMaker, addressOne, addressTwo, a
     })
 
     it('should fail when minting tokens not via upgrade procedure', async () => {
-        await newToken.upgradeFrom(addressTwo, 1).should.be.rejected
+        await token.upgradeFrom(addressTwo, 1).should.be.rejected
     })
 
     it('all tokens should be moved after last address will finish migration', async () => {
         const amount = await originalToken.balanceOf(addressTwo)
         await originalToken.upgrade(amount, { from: addressTwo })
         expect(await originalToken.balanceOf(addressTwo)).to.be.bignumber.equal(Zero)
-        expect(await token.balanceOf(addressTwo)).to.be.bignumber.equal(amount)
+        expect(await token.balanceOf(addressTwo)).to.be.bignumber.equal(amount.mul(Multiplier))
 
         // Token supply of original token should be zero
         expect(await originalToken.totalSupply()).to.be.bignumber.equal(Zero)
 
         // New token total supply should be equal original token supply
         const originalSupply = await token.originalSupply()
-        expect(originalSupply.mul(Multiplier)).should.be.bignumber.equal(await token.totalSupply())
+        expect(originalSupply.mul(Multiplier)).to.be.bignumber.equal(await token.totalSupply())
     })
 })
 
-contract.only('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
+contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
     let originalToken, token, nextToken, tokenSupply, randomContract
     before(async () => {
         originalToken = await OriginalMystToken.new()
