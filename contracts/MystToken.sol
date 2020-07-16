@@ -51,14 +51,14 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     mapping (address => mapping (address => uint256)) private _allowances;
 
     // State of token upgrade
-    enum UpgradeState {Unknown, NotAllowed, WaitingForAgent, ReadyToUpgrade, Upgrading}
+    enum UpgradeState {Unknown, NotAllowed, WaitingForAgent, ReadyToUpgrade, Upgrading, Completed}
 
     // Token upgrade events
     event Upgrade(address indexed from, address indexed to, address agent, uint256 _value);
     event UpgradeAgentSet(address agent);
     event UpgradeMasterSet(address master);
 
-    constructor(address originalToken, uint256 originalSupply) public {
+    constructor(address originalToken) public {
         _name = "Mysterium";
         _symbol = "MYST";
 
@@ -69,7 +69,7 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         // upgradability settings
         _originalToken  = originalToken;
-        _originalSupply = originalSupply;
+        _originalSupply = IERC20(_originalToken).totalSupply();
 
         // set upgrade master
         _upgradeMaster = _msgSender();
@@ -404,6 +404,7 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     function getUpgradeState() public view returns(UpgradeState) {
         if(address(_upgradeAgent) == address(0x00)) return UpgradeState.WaitingForAgent;
         else if(_totalUpgraded == 0) return UpgradeState.ReadyToUpgrade;
+        else if(totalSupply() == 0) return UpgradeState.Completed;
         else return UpgradeState.Upgrading;
     }
 
