@@ -1,6 +1,6 @@
 # MYST v2 smart contracts
 
-In this repository we're storing smart contracts of ERC777 based MYST token (native token of [Mysterium Network](https://mysterium.network]) and set of tools for migration from original token version.
+In this repository we're storing smart contracts of ERC777 based MYST token (native token of [Mysterium Network](https://mysterium.network) and set of tools for migration from original token version.
 
 Original MYST token is deployed into Ethereum blockchain at address [0xa645264C5603E96c3b0B078cdab68733794B0A71](https://etherscan.io/token/0xa645264C5603E96c3b0B078cdab68733794B0A71).
 
