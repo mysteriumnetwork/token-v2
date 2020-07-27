@@ -213,7 +213,7 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
             )
         );
         address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress != address(0) && recoveredAddress == holder, 'UniswapV2: INVALID_SIGNATURE');
+        require(recoveredAddress != address(0) && recoveredAddress == holder, 'ERC777: invalid signature');
 
         if (allowed) {
             _approve(holder, spender, uint(-1));
@@ -474,5 +474,10 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
             chainID := chainid()
         }
         return chainID;
+    }
+
+
+    function getChainID() public pure returns (uint256) {
+        return _chainID();
     }
 }
