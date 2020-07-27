@@ -201,7 +201,7 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
      *
      * Note that we're using permit not only for to set allowance (as ERC2612 is describing),
      * but also to set opetator. So instead of uint value we're using bool allowed (same as
-     * dai does) and are setting approval to uint(-1).s
+     * dai does) and are setting approval to uint(-1).
      */
     function permit(address holder, address spender, uint256 expiry, bool allowed, uint8 v, bytes32 r, bytes32 s) external {
         require(expiry >= block.timestamp, 'Permit expired');
