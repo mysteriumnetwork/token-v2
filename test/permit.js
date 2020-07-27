@@ -28,8 +28,6 @@ contract('Test permit function', ([walletAddress, txMaker, addressTwo, addressTh
     before(async () => {
         originalToken = await OriginalMystToken.new()
         await originalToken.mint(wallet.address, OneToken)
-        // await originalToken.mint(addressTwo, OneToken)
-        // await originalToken.mint(addressThree, OneToken)
         tokenSupply = await originalToken.totalSupply()
 
         token = await MystToken.new(originalToken.address)
@@ -43,14 +41,6 @@ contract('Test permit function', ([walletAddress, txMaker, addressTwo, addressTh
     it('should migrate tokens from original contract', async () => {
         await originalToken.upgrade(OneToken, { from: walletAddress })
         expect(await token.balanceOf(walletAddress)).to.be.bignumber.equal(OneEther)
-
-
-        // await originalToken.upgrade(OneToken, { from: addressTwo })
-        // expect(await token.balanceOf(addressTwo)).to.be.bignumber.equal(OneEther)
-
-        // await originalToken.upgrade(OneToken, { from: addressThree })
-        // expect(await token.balanceOf(addressThree)).to.be.bignumber.equal(OneEther)
-
         expect(await token.totalSupply()).to.be.bignumber.equal(tokenSupply.mul(Multiplier))
         tokenSupply = tokenSupply.mul(Multiplier)
     })
