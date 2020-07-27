@@ -26,7 +26,7 @@ const states = {
     completed: new BN(5)
 }
 
-contract.only('Original to new token migration', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
+contract('Migration via mulisigs', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
     let token, originalToken, tokenSupply, multisig
     before(async () => {
         multisig = await Multisig.new()
