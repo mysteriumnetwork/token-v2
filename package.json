@@ -34,6 +34,7 @@
         "chai-as-promised": "^7.1.1",
         "chai-bn": "^0.2.1",
         "ethereumjs-util": "^7.0.3",
+        "ganache-cli": "^6.9.1",
         "truffle": "5.1.34"
     }
 }
