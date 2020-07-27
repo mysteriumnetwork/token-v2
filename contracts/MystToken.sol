@@ -40,12 +40,11 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     // This isn't ever read from - it's only used to respond to the defaultOperators query.
     address[] private _defaultOperatorsArray;
 
-    // Immutable, but accounts may revoke them (tracked in __revokedDefaultOperators).
+    // Always empty as we're not using default operators.
     mapping(address => bool) private _defaultOperators;
 
-    // For each account, a mapping of its operators and revoked default operators.
+    // For each account, a mapping of its operators.
     mapping(address => mapping(address => bool)) private _operators;
-    mapping(address => mapping(address => bool)) private _revokedDefaultOperators;
 
     // ERC20-allowances
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -126,33 +125,17 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     }
 
     function isOperatorFor(address operator, address tokenHolder) public view override returns (bool) {
-        return operator == tokenHolder ||
-            (_defaultOperators[operator] && !_revokedDefaultOperators[tokenHolder][operator]) ||
-            _operators[tokenHolder][operator];
+        return operator == tokenHolder || _operators[tokenHolder][operator];
     }
 
     function authorizeOperator(address operator) public override  {
-        require(_msgSender() != operator, "ERC777: authorizing self as operator");
-
-        if (_defaultOperators[operator]) {
-            delete _revokedDefaultOperators[_msgSender()][operator];
-        } else {
-            _operators[_msgSender()][operator] = true;
-        }
-
-        emit AuthorizedOperator(operator, _msgSender());
+        require(operator != address(0x0), "ERC777: authorizing zero address as operator");
+        _authorizeOperator(_msgSender(), operator);
     }
 
     function revokeOperator(address operator) public override  {
         require(operator != _msgSender(), "ERC777: revoking self as operator");
-
-        if (_defaultOperators[operator]) {
-            _revokedDefaultOperators[_msgSender()][operator] = true;
-        } else {
-            delete _operators[_msgSender()][operator];
-        }
-
-        emit RevokedOperator(operator, _msgSender());
+        _revokeOperator(_msgSender(), operator);
     }
 
     function defaultOperators() public view override returns (address[] memory) {
@@ -290,6 +273,17 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         _allowances[holder][spender] = value;
         emit Approval(holder, spender, value);
+    }
+
+    function _authorizeOperator(address holder, address operator) private {
+        require(holder != operator, "ERC777: authorizing self as operator");
+        _operators[holder][operator] = true;
+        emit AuthorizedOperator(operator, holder);
+    }
+
+    function _revokeOperator(address holder, address operator) private {
+        delete _operators[holder][operator];
+        emit RevokedOperator(operator, holder);
     }
 
     /**
