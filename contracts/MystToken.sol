@@ -37,15 +37,23 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     bytes32 constant private _TOKENS_RECIPIENT_INTERFACE_HASH =
         0xb281fc8c12954d22544db45de3159a39272895b169a852b314f9cc762e44c53b;
 
+    // EIP712
+    bytes32 public DOMAIN_SEPARATOR;
+
+    // keccak256("Permit(address holder,address spender,uint256 nonce,uint256 expiry,bool allowed)");
+    bytes32 public constant PERMIT_TYPEHASH = 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb;
+
+    // The nonces mapping is given for replay protection in permit function.
+    mapping(address => uint) public nonces;
+
     // This isn't ever read from - it's only used to respond to the defaultOperators query.
     address[] private _defaultOperatorsArray;
 
-    // Immutable, but accounts may revoke them (tracked in __revokedDefaultOperators).
+    // Always empty as we're not using default operators.
     mapping(address => bool) private _defaultOperators;
 
-    // For each account, a mapping of its operators and revoked default operators.
+    // For each account, a mapping of its operators.
     mapping(address => mapping(address => bool)) private _operators;
-    mapping(address => mapping(address => bool)) private _revokedDefaultOperators;
 
     // ERC20-allowances
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -73,6 +81,17 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         // set upgrade master
         _upgradeMaster = _msgSender();
+
+        // construct EIP712 domain separator
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
+                keccak256(bytes(_name)),
+                keccak256(bytes('1')),
+                _chainID(),
+                address(this)
+            )
+        );
     }
 
     function name() public view override returns (string memory) {
@@ -126,33 +145,17 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     }
 
     function isOperatorFor(address operator, address tokenHolder) public view override returns (bool) {
-        return operator == tokenHolder ||
-            (_defaultOperators[operator] && !_revokedDefaultOperators[tokenHolder][operator]) ||
-            _operators[tokenHolder][operator];
+        return operator == tokenHolder || _operators[tokenHolder][operator];
     }
 
     function authorizeOperator(address operator) public override  {
-        require(_msgSender() != operator, "ERC777: authorizing self as operator");
-
-        if (_defaultOperators[operator]) {
-            delete _revokedDefaultOperators[_msgSender()][operator];
-        } else {
-            _operators[_msgSender()][operator] = true;
-        }
-
-        emit AuthorizedOperator(operator, _msgSender());
+        require(operator != address(0x0), "ERC777: authorizing zero address as operator");
+        _authorizeOperator(_msgSender(), operator);
     }
 
     function revokeOperator(address operator) public override  {
         require(operator != _msgSender(), "ERC777: revoking self as operator");
-
-        if (_defaultOperators[operator]) {
-            _revokedDefaultOperators[_msgSender()][operator] = true;
-        } else {
-            delete _operators[_msgSender()][operator];
-        }
-
-        emit RevokedOperator(operator, _msgSender());
+        _revokeOperator(_msgSender(), operator);
     }
 
     function defaultOperators() public view override returns (address[] memory) {
@@ -194,6 +197,34 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
     }
 
     /**
+     * Approve by signature
+     *
+     * Note that we're using permit not only for to set allowance (as ERC2612 is describing),
+     * but also to set opetator. So instead of uint value we're using bool allowed (same as
+     * dai does) and are setting approval to uint(-1).s
+     */
+    function permit(address holder, address spender, uint256 expiry, bool allowed, uint8 v, bytes32 r, bytes32 s) external {
+        require(expiry >= block.timestamp, 'Permit expired');
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(PERMIT_TYPEHASH, holder, spender, nonces[holder]++, expiry, allowed))
+            )
+        );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(recoveredAddress != address(0) && recoveredAddress == holder, 'ERC777: invalid signature');
+
+        if (allowed) {
+            _approve(holder, spender, uint(-1));
+            _authorizeOperator(holder, spender);
+        } else {
+            _approve(holder, spender, 0);
+            _revokeOperator(holder, spender);
+        }
+    }
+
+    /**
     * Note that operator and allowance concepts are orthogonal: operators cannot
     * call `transferFrom` (unless they have allowance), and accounts with
     * allowance cannot call `operatorSend` (unless they are operators).
@@ -208,9 +239,12 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         _callTokensToSend(spender, holder, recipient, amount, "", "");
 
-        _move(spender, holder, recipient, amount, "", "");
-        _approve(holder, spender, _allowances[holder][spender].sub(amount, "ERC777: transfer amount exceeds allowance"));
+        // Allowance for uint256(-1) means "always allowed" and is analog for operators but in erc20 semantics.
+        if (holder != spender && _allowances[holder][spender] != uint256(-1)) {
+            _approve(holder, spender, _allowances[holder][spender].sub(amount, "ERC777: transfer amount exceeds allowance"));
+        }
 
+        _move(spender, holder, recipient, amount, "", "");
         _callTokensReceived(spender, holder, recipient, amount, "", "", false);
 
         return true;
@@ -290,6 +324,17 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         _allowances[holder][spender] = value;
         emit Approval(holder, spender, value);
+    }
+
+    function _authorizeOperator(address holder, address operator) private {
+        require(holder != operator, "ERC777: authorizing self as operator");
+        _operators[holder][operator] = true;
+        emit AuthorizedOperator(operator, holder);
+    }
+
+    function _revokeOperator(address holder, address operator) private {
+        delete _operators[holder][operator];
+        emit RevokedOperator(operator, holder);
     }
 
     /**
@@ -423,4 +468,11 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
         emit Upgrade(from, to, upgradeAgent(), amount);
     }
 
+    function _chainID() private pure returns (uint256) {
+        uint256 chainID;
+        assembly {
+            chainID := chainid()
+        }
+        return chainID;
+    }
 }

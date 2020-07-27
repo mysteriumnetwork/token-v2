@@ -17,7 +17,7 @@ npm install
 2. Run local ethereum node, e.g. `ganache`. Make sure to use version greater than 6.9.1.
 
 ```bash
-npx ganache-cli
+npx ganache-cli --mnemonic "amused glory pen avocado toilet dragon entry kitchen cliff retreat canyon danger"
 ```
 
 3. Run tests (in a separate from ganache terminal)

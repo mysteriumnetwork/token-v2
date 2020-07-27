@@ -6,15 +6,11 @@ chai.should()
 const expect = chai.expect
 
 const MystToken = artifacts.require("MystToken")
-const NextToken = artifacts.require("NextToken")
 const OriginalMystToken = artifacts.require("OriginalMystToken")
 const Multisig = artifacts.require("Multisig")
 
 const OneToken = web3.utils.toWei(new BN('100000000'), 'wei')  // In original contract MYST had 8 decimals
-const HalfToken = web3.utils.toWei(new BN('50000000'), 'wei')
-const OneEther = web3.utils.toWei(new BN(1), 'ether')
 const Multiplier = new BN('10000000000')                       // New token has 18 zeros instead of 8
-const Zero = new BN(0)
 const Empty = Buffer.from('')
 
 const states = {
@@ -26,8 +22,8 @@ const states = {
     completed: new BN(5)
 }
 
-contract.only('Original to new token migration', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
-    let token, originalToken, tokenSupply, multisig
+contract('Migration via mulisigs', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
+    let token, originalToken, multisig
     before(async () => {
         multisig = await Multisig.new()
 

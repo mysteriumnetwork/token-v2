@@ -33,7 +33,11 @@
         "chai": "^4.2.0",
         "chai-as-promised": "^7.1.1",
         "chai-bn": "^0.2.1",
+        "crypto": "^1.0.1",
         "ethereumjs-util": "^7.0.3",
+        "ethers": "^5.0.7",
+        "ganache-cli": "^6.9.1",
+        "secp256k1": "^4.0.2",
         "truffle": "5.1.34"
     }
 }
