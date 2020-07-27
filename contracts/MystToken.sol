@@ -191,9 +191,12 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
 
         _callTokensToSend(spender, holder, recipient, amount, "", "");
 
-        _move(spender, holder, recipient, amount, "", "");
+        // Allowance for uint256(-1) means "always allowed" and is analog for operators but in erc20 semantics.
+        if (holder != spender && _allowances[holder][spender] != uint256(-1)) {
         _approve(holder, spender, _allowances[holder][spender].sub(amount, "ERC777: transfer amount exceeds allowance"));
+        }
 
+        _move(spender, holder, recipient, amount, "", "");
         _callTokensReceived(spender, holder, recipient, amount, "", "", false);
 
         return true;

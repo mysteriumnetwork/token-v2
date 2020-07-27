@@ -15,7 +15,7 @@ const OneEther = web3.utils.toWei(new BN(1), 'ether')
 const Multiplier = new BN('10000000000')                       // New token has 18 zeros instead of 8
 
 const Zero = new BN(0)
-
+const Max = new BN('115792089237316195423570985008687907853269984665640564039457584007913129639935') // uint256(-1)
 
 contract('Test ERC20 functionality', ([owner, addressOne, addressTwo, addressThree, ...otherAccounts]) => {
     let token, originalToken, tokenSupply
@@ -153,4 +153,25 @@ contract('Test ERC20 functionality', ([owner, addressOne, addressTwo, addressThr
         expect(allowance).to.be.bignumber.lessThan(amount)
         await token.transferFrom(addressOne, owner, amount, { from: owner }).should.be.rejected
     })
+
+    it('max allowance should never be changed during transferFrom', async () => {
+        const initialOwnerBalance = await token.balanceOf(owner)
+        const initialAddressOneBalance = await token.balanceOf(addressOne)
+        const initialAddressThreeeBalance = await token.balanceOf(addressThree)
+        const initialAllowance = await token.allowance(addressOne, owner)
+
+        await token.approve(owner, Max, { from: addressOne })
+        expect(await token.allowance(addressOne, owner)).to.be.bignumber.equal(Max)
+
+        const amount = new BN('876')
+        await token.transferFrom(addressOne, addressThree, amount, { from: owner })
+
+        expect(await token.balanceOf(owner)).to.be.bignumber.equal(initialOwnerBalance)
+        expect(await token.balanceOf(addressOne)).to.be.bignumber.equal(initialAddressOneBalance.sub(amount))
+        expect(await token.balanceOf(addressThree)).to.be.bignumber.equal(initialAddressThreeeBalance.add(amount))
+
+        // Allowance should be not changed
+        expect(await token.allowance(addressOne, owner)).to.be.bignumber.equal(Max)
+    })
+
 })
