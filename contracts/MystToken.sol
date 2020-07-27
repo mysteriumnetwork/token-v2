@@ -475,9 +475,4 @@ contract MystToken is Context, IERC777, IERC20, IUpgradeAgent, IERC777Recipient,
         }
         return chainID;
     }
-
-
-    function getChainID() public pure returns (uint256) {
-        return _chainID();
-    }
 }
