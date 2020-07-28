@@ -8,7 +8,6 @@ const expect = chai.expect
 const MystToken = artifacts.require("MystToken")
 const OriginalMystToken = artifacts.require("OriginalMystToken")
 const RandomContract = artifacts.require("RandomContract")
-const RandomERC777ReceiverContract = artifacts.require("RandomERC777ReceiverContract")
 
 const OneToken = web3.utils.toWei(new BN('100000000'), 'wei')  // In original contract MYST had 8 decimals
 const OneEther = web3.utils.toWei(new BN(1), 'ether')
@@ -91,19 +90,6 @@ contract('Test ERC20 functionality', ([owner, addressOne, addressTwo, addressThr
 
         expect(await token.balanceOf(addressOne)).to.be.bignumber.equal(initialAddressOneBalance.sub(amount))
         expect(await token.balanceOf(receiver)).to.be.bignumber.equal(amount)
-        expect(await token.totalSupply()).to.be.bignumber.equal(tokenSupply)
-    })
-
-    it('should successfully transfer into and touch tokens received of ERC777 receiver smart contract', async () => {
-        const initialAddressOneBalance = await token.balanceOf(addressOne)
-        const receiver = await RandomERC777ReceiverContract.new()
-        const amount = new BN('1000')
-
-        await token.transfer(receiver.address, amount, { from: addressOne })
-
-        expect(await token.balanceOf(addressOne)).to.be.bignumber.equal(initialAddressOneBalance.sub(amount))
-        expect(await token.balanceOf(receiver.address)).to.be.bignumber.equal(amount)
-        expect(await receiver.receivedAmount()).to.be.bignumber.equal(amount)
         expect(await token.totalSupply()).to.be.bignumber.equal(tokenSupply)
     })
 

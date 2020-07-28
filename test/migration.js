@@ -8,13 +8,12 @@ const expect = chai.expect
 const MystToken = artifacts.require("MystToken")
 const NextToken = artifacts.require("NextToken")
 const OriginalMystToken = artifacts.require("OriginalMystToken")
-const RandomERC777ReceiverContract = artifacts.require("RandomERC777ReceiverContract")
+const RandomContract = artifacts.require("RandomContract")
 
 const OneToken = web3.utils.toWei(new BN('100000000'), 'wei')  // In original contract MYST had 8 decimals
 const HalfToken = web3.utils.toWei(new BN('50000000'), 'wei')
 const Multiplier = new BN('10000000000')                       // New token has 18 zeros instead of 8
 const Zero = new BN(0)
-const Empty = Buffer.from('')
 
 const states = {
     unknown: new BN(0),
@@ -126,19 +125,18 @@ contract('Original to new token migration', ([txMaker, addressOne, addressTwo, a
     })
 })
 
-contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
+contract('Migration of new token', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
     let originalToken, token, nextToken, tokenSupply, randomContract
     before(async () => {
         originalToken = await OriginalMystToken.new()
         await originalToken.mint(addressOne, OneToken)
         await originalToken.mint(addressTwo, OneToken)
-        await originalToken.mint(addressThree, OneToken)
         tokenSupply = await originalToken.totalSupply()
 
         token = await MystToken.new(originalToken.address)
     })
 
-    it('should migrate from original(ERC20) to current (ERC777) token', async () => {
+    it('should migrate from original(ERC20) to current (ERC20+permit) token', async () => {
         // Enable token migration for original ERC20 token
         await originalToken.setUpgradeAgent(token.address)
 
@@ -149,13 +147,10 @@ contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, a
         const addressTwoBalance = await originalToken.balanceOf(addressTwo)
         await originalToken.upgrade(addressTwoBalance, { from: addressTwo })
 
-        const addressThreeBalance = await originalToken.balanceOf(addressThree)
-        await originalToken.upgrade(addressThreeBalance, { from: addressThree })
-
         // Recheck token balances
         addressOneBalance.mul(Multiplier).should.be.bignumber.equal(await token.balanceOf(addressOne))
         addressTwoBalance.mul(Multiplier).should.be.bignumber.equal(await token.balanceOf(addressTwo))
-        addressThreeBalance.mul(Multiplier).should.be.bignumber.equal(await token.balanceOf(addressThree))
+        // addressThreeBalance.mul(Multiplier).should.be.bignumber.equal(await token.balanceOf(addressThree))
 
         expect(tokenSupply.mul(Multiplier)).to.be.bignumber.equal(await token.totalSupply())
     })
@@ -164,11 +159,7 @@ contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, a
         await token.upgrade(await token.balanceOf(addressOne), { from: addressOne }).should.be.rejected
     })
 
-    it('should fail sending tokens into token address', async () => {
-        await token.send(token.address, await token.balanceOf(addressOne), Empty, { from: addressOne }).should.be.rejected
-    })
-
-    it('should enable token migration for ERC777 based token', async () => {
+    it('should enable token migration for NEW token', async () => {
         const initialUpgradeState = await token.getUpgradeState()
         initialUpgradeState.should.be.bignumber.equal(states.waitingForAgent)
 
@@ -182,7 +173,7 @@ contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, a
 
     it('should migrate tokens via upgrade function', async () => {
         const addressOneBalance = await token.balanceOf(addressOne)
-        await token.upgrade(addressOneBalance, Buffer.from(''), { from: addressOne })
+        await token.upgrade(addressOneBalance, { from: addressOne })
         expect(await token.balanceOf(addressOne)).to.be.bignumber.equal(Zero)
         expect(await nextToken.balanceOf(addressOne)).to.be.bignumber.equal(addressOneBalance)
 
@@ -196,49 +187,16 @@ contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, a
         upgradeState.should.be.bignumber.equal(states.upgrading)
     })
 
-    it('should migrate tokens via simply sending them into token address', async () => {
-        const addressTwoBalance = await token.balanceOf(addressTwo)
-        const initialNewTokenSupply = await nextToken.totalSupply()
-        const totalSupply = await token.totalSupply()
-
-        await token.send(token.address, addressTwoBalance, Buffer.from(''), { from: addressTwo })
-        expect(await token.balanceOf(addressTwo)).to.be.bignumber.equal(Zero)
-        expect(await nextToken.balanceOf(addressTwo)).to.be.bignumber.equal(addressTwoBalance)
-
-        const expectedTotalSupply = totalSupply.sub(addressTwoBalance)
-        expect(await token.totalSupply()).to.be.bignumber.equal(expectedTotalSupply)
-
-        const expectedNewTokenSupply = initialNewTokenSupply.add(addressTwoBalance)
-        expectedNewTokenSupply.should.be.bignumber.equal(await nextToken.totalSupply())
-    })
-
-    it('ERC20 transfer() into token address should also migrate tokens', async () => {
-        const initialTotalSupply = await token.totalSupply()
-        const initialNextTokenSupply = await nextToken.totalSupply()
-        const initialAddressThreeBalance = await token.balanceOf(addressThree)
-        const amountToSend = HalfToken.mul(Multiplier)
-
-        await token.transfer(token.address, amountToSend, { from: addressThree })
-        expect(await token.balanceOf(addressThree)).to.be.bignumber.equal(initialAddressThreeBalance.sub(amountToSend))
-        expect(await nextToken.balanceOf(addressThree)).to.be.bignumber.equal(amountToSend)
-
-        const expectedTotalSupply = initialTotalSupply.sub(amountToSend)
-        expectedTotalSupply.should.be.bignumber.equal(await token.totalSupply())
-
-        const expectedNextTokenSupply = initialNextTokenSupply.add(amountToSend)
-        expectedNextTokenSupply.should.be.bignumber.equal(await nextToken.totalSupply())
-    })
-
     it('should be possible to exchange tokens while migration in progress', async () => {
-        randomContract = await RandomERC777ReceiverContract.new()
+        randomContract = await RandomContract.new()
 
         const upgradeState = await token.getUpgradeState()
         expect(upgradeState).to.be.bignumber.equal(states.upgrading)
 
-        const amountToSend = await token.balanceOf(addressThree)
-        await token.send(randomContract.address, amountToSend, Empty, { from: addressThree })
+        const amountToSend = await token.balanceOf(addressTwo)
+        await token.transfer(randomContract.address, amountToSend, { from: addressTwo })
         expect(await token.balanceOf(randomContract.address)).to.be.bignumber.equal(amountToSend)
-        expect(await token.balanceOf(addressThree)).to.be.bignumber.equal(Zero)
+        expect(await token.balanceOf(addressTwo)).to.be.bignumber.equal(Zero)
     })
 
     it('should fail settling upgrade agent while in upgrading stage', async () => {
@@ -248,7 +206,9 @@ contract('Migration of ERC777 based token', ([txMaker, addressOne, addressTwo, a
 
     it('all tokens should be moved after last address will finish migration', async () => {
         const amount = await token.balanceOf(randomContract.address)
-        await randomContract.move(token.address, token.address, amount)  // we're using function move which will simply use erc777 send
+        await randomContract.move(token.address, addressThree, amount)  // we're using function move which will simply use erc777 send
+        await token.upgrade(amount, { from: addressThree })
+
         expect(await token.totalSupply()).to.be.bignumber.equal(Zero)
         expect(await token.getUpgradeState()).to.be.bignumber.equal(states.completed)
 

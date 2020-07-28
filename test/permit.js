@@ -51,43 +51,39 @@ contract('Test permit function', ([walletAddress, txMaker, addressTwo, addressTh
         expect(await token.PERMIT_TYPEHASH()).to.eq(PERMIT_TYPEHASH)
     })
 
-    it('should allow to set operator and max allowance using permit function', async () => {
+    it('should allow to set allowance using permit function', async () => {
         expect(await token.allowance(walletAddress, txMaker)).to.be.bignumber.equal(Zero)
-        expect(await token.isOperatorFor(txMaker, walletAddress)).to.be.false
 
         const nonce = await token.nonces(wallet.address)
-        const expiry = MaxUint256
+        const deadline = MaxUint256
         const digest = await getApprovalDigest(
             token,
-            { holder: wallet.address, spender: txMaker, allowed: true },
+            { holder: wallet.address, spender: txMaker, value: MaxUint256 },
             nonce,
-            expiry
+            deadline
         )
 
         const { v, r, s } = ecsign(Buffer.from(digest.slice(2), 'hex'), wallet.privKey)
-        await token.permit(wallet.address, txMaker, expiry, true, v, hexlify(r), hexlify(s), { from: walletAddress })
+        await token.permit(wallet.address, txMaker, MaxUint256, deadline, v, hexlify(r), hexlify(s), { from: walletAddress })
 
         expect(await token.allowance(walletAddress, txMaker)).to.be.bignumber.equal(Max)
-        expect(await token.isOperatorFor(txMaker, walletAddress)).to.be.true
     })
 
     it('should revoke operator using permit function', async () => {
         expect(await token.allowance(walletAddress, txMaker)).to.be.bignumber.equal(Max)
-        expect(await token.isOperatorFor(txMaker, walletAddress)).to.be.true
 
         const nonce = await token.nonces(wallet.address)
-        const expiry = MaxUint256
+        const deadline = MaxUint256
         const digest = await getApprovalDigest(
             token,
-            { holder: wallet.address, spender: txMaker, allowed: 0 },
+            { holder: wallet.address, spender: txMaker, value: 0 },
             nonce,
-            expiry
+            deadline
         )
 
         const { v, r, s } = ecsign(Buffer.from(digest.slice(2), 'hex'), wallet.privKey)
-        await token.permit(wallet.address, txMaker, expiry, false, v, hexlify(r), hexlify(s), { from: walletAddress })
+        await token.permit(wallet.address, txMaker, Zero, deadline, v, hexlify(r), hexlify(s), { from: walletAddress })
 
         expect(await token.allowance(walletAddress, txMaker)).to.be.bignumber.equal(Zero)
-        expect(await token.isOperatorFor(txMaker, walletAddress)).to.be.false
     })
 })
