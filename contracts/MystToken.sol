@@ -279,6 +279,39 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         else return UpgradeState.Upgrading;
     }
 
+    // -------------- FUNDS RECOVERY --------------
+
+    address internal _fundsDestination;
+    event FundsRecoveryDestinationChanged(address indexed previousDestination, address indexed newDestination);
+
+    /**
+     * Setting new destination of funds recovery.
+     */
+    function setFundsDestination(address newDestination) public {
+        require(_msgSender()== _upgradeMaster, "MYST: only a master can set funds destination");
+        require(newDestination != address(0));
+
+        _fundsDestination = newDestination;
+        emit FundsRecoveryDestinationChanged(_fundsDestination, newDestination);
+    }
+    /**
+     * Getting funds destination address.
+     */
+    function getFundsDestination() public view returns (address) {
+        return _fundsDestination;
+    }
+
+    /**
+       Transfers selected tokens into owner address.
+    */
+    function claimTokens(address token) public {
+        require(_fundsDestination != address(0));
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        IERC20(token).transfer(_fundsDestination, amount);
+    }
+
+    // -------------- HELPERS --------------
+
     function _chainID() private pure returns (uint256) {
         uint256 chainID;
         assembly {
