@@ -4,7 +4,7 @@ const { randomBytes } = require('crypto')
 const { privateToPublic, setLengthLeft } = require('ethereumjs-util')
 
 const PERMIT_TYPEHASH = keccak256(
-    toUtf8Bytes('Permit(address holder,address spender,uint256 nonce,uint256 expiry,bool allowed)')
+    toUtf8Bytes('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)')
 )
 
 function getDomainSeparator(name, tokenAddress) {
@@ -22,7 +22,7 @@ function getDomainSeparator(name, tokenAddress) {
     )
 }
 
-async function getApprovalDigest(token, approve, nonce, expiry) {
+async function getApprovalDigest(token, approve, nonce, deadline) {
     const name = await token.name()
     const DOMAIN_SEPARATOR = getDomainSeparator(name, token.address)
     nonce = setLengthLeft(nonce.toBuffer(), 32).toString('hex')
@@ -36,8 +36,8 @@ async function getApprovalDigest(token, approve, nonce, expiry) {
                 DOMAIN_SEPARATOR,
                 keccak256(
                     defaultAbiCoder.encode(
-                        ['bytes32', 'address', 'address', 'uint256', 'uint256', 'bool'],
-                        [PERMIT_TYPEHASH, approve.holder, approve.spender, nonce, expiry, approve.allowed]
+                        ['bytes32', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+                        [PERMIT_TYPEHASH, approve.holder, approve.spender, approve.value, nonce, deadline]
                     )
                 )
             ]
