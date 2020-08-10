@@ -247,7 +247,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
 
     function setUpgradeAgent(address agent) external {
         require(_msgSender()== _upgradeMaster, "MYST: only a master can designate the next agent");
-        require(agent != address(0x0));
+        require(agent != address(0x0), "MYST: upgrade agent can't be zero address");
         require(getUpgradeState() != UpgradeState.Upgrading, "MYST: upgrade has already begun");
 
         _upgradeAgent = IUpgradeAgent(agent);
@@ -276,7 +276,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
      */
     function setFundsDestination(address newDestination) public {
         require(_msgSender()== _upgradeMaster, "MYST: only a master can set funds destination");
-        require(newDestination != address(0));
+        require(newDestination != address(0), "MYST: funds destination can't be zero addreess");
 
         _fundsDestination = newDestination;
         emit FundsRecoveryDestinationChanged(_fundsDestination, newDestination);
