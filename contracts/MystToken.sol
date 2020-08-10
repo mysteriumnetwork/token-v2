@@ -289,7 +289,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     }
 
     /**
-       Transfers selected tokens into owner address.
+       Transfers selected tokens into `_fundsDestination` address.
     */
     function claimTokens(address token) public {
         require(_fundsDestination != address(0));
