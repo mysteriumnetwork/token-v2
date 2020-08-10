@@ -14,6 +14,11 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     address immutable _originalToken;                        // Address of MYSTv1 token
     uint256 immutable _originalSupply;                       // Token supply of MYSTv1 token
 
+    // The original MYST token and the new MYST token have a decimal difference of 10.
+    // As such, minted values as well as the total supply comparisons need to offset all values
+    // by 10 zeros to properly compare them.
+    uint256 constant private DECIMAL_OFFSET = 1e10;
+
     bool constant public override isUpgradeAgent = true;     // Upgradeability interface marker
     address private _upgradeMaster;                          // He can enable future token migration
     IUpgradeAgent private _upgradeAgent;                     // The next contract where the tokens will be migrated
@@ -190,9 +195,9 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         require(msg.sender == originalToken(), "only original token can call upgradeFrom");
 
         // Value is multiplied by 0e10 as old token had decimals = 8?
-        _mint(_account, _value.mul(10000000000));
+        _mint(_account, _value.mul(DECIMAL_OFFSET));
 
-        require(totalSupply() <= originalSupply().mul(10000000000), "can not mint more tokens than in original contract");
+        require(totalSupply() <= originalSupply().mul(DECIMAL_OFFSET), "can not mint more tokens than in original contract");
     }
 
 
