@@ -11,9 +11,10 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     using SafeMath for uint256;
     using Address for address;
 
-    address private _originalToken;                          // Address of MYSTv1 token
-    uint256 private _originalSupply;                         // Token supply of MYSTv1 token
+    address immutable _originalToken;                        // Address of MYSTv1 token
+    uint256 immutable _originalSupply;                       // Token supply of MYSTv1 token
 
+    bool constant public override isUpgradeAgent = true;     // Upgradeability interface marker
     address private _upgradeMaster;                          // He can enable future token migration
     IUpgradeAgent private _upgradeAgent;                     // The next contract where the tokens will be migrated
     uint256 private _totalUpgraded;                          // How many tokens we have upgraded by now
@@ -21,11 +22,12 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
 
-    string private _name;
-    string private _symbol;
+    string constant public name = "Mysterium";
+    string constant public symbol = "MYST";
+    uint8 constant public decimals = 18;
 
     // EIP712
-    bytes32 public DOMAIN_SEPARATOR;
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
@@ -48,12 +50,9 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     event UpgradeMasterSet(address master);
 
     constructor(address originalToken) public {
-        _name = "Mysterium";
-        _symbol = "MYST";
-
         // upgradability settings
         _originalToken  = originalToken;
-        _originalSupply = IERC20(_originalToken).totalSupply();
+        _originalSupply = IERC20(originalToken).totalSupply();
 
         // set upgrade master
         _upgradeMaster = _msgSender();
@@ -62,24 +61,12 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
-                keccak256(bytes(_name)),
+                keccak256(bytes(name)),
                 keccak256(bytes('1')),
                 _chainID(),
                 address(this)
             )
         );
-    }
-
-    function name() public view returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view returns (string memory) {
-        return _symbol;
-    }
-
-    function decimals() public pure returns (uint8) {
-        return 18;
     }
 
     function totalSupply() public view override(IERC20) returns (uint256) {
@@ -197,11 +184,6 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
 
     function originalSupply() public view override returns (uint256) {
         return _originalSupply;
-    }
-
-    /** Interface marker */
-    function isUpgradeAgent() public override pure returns (bool) {
-        return true;
     }
 
     function upgradeFrom(address _account, uint256 _value) public override {

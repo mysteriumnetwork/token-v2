@@ -8,7 +8,7 @@ pragma solidity 0.6.11;
  * Upgrade agent itself can be the token contract, or just a middle man contract doing the heavy lifting.
  */
 abstract contract IUpgradeAgent {
-    function isUpgradeAgent() public virtual pure returns (bool);
+    function isUpgradeAgent() external virtual pure returns (bool);
     function upgradeFrom(address _from, uint256 _value) public virtual;
     function originalSupply() public virtual view returns (uint256);
     function originalToken() public virtual view returns (address);
