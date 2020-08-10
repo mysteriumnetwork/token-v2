@@ -222,7 +222,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         UpgradeState state = getUpgradeState();
         require(state == UpgradeState.ReadyToUpgrade || state == UpgradeState.Upgrading, "MYST: token is not in upgrading state");
 
-        require(amount > 0, "MYST: upgradable amount should be more than 0");
+        require(amount != 0, "MYST: upgradable amount should be more than 0");
 
         address holder = _msgSender();
 
