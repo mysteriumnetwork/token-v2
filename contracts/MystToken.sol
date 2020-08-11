@@ -11,9 +11,15 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     using SafeMath for uint256;
     using Address for address;
 
-    address private _originalToken;                          // Address of MYSTv1 token
-    uint256 private _originalSupply;                         // Token supply of MYSTv1 token
+    address immutable _originalToken;                        // Address of MYSTv1 token
+    uint256 immutable _originalSupply;                       // Token supply of MYSTv1 token
 
+    // The original MYST token and the new MYST token have a decimal difference of 10.
+    // As such, minted values as well as the total supply comparisons need to offset all values
+    // by 10 zeros to properly compare them.
+    uint256 constant private DECIMAL_OFFSET = 1e10;
+
+    bool constant public override isUpgradeAgent = true;     // Upgradeability interface marker
     address private _upgradeMaster;                          // He can enable future token migration
     IUpgradeAgent private _upgradeAgent;                     // The next contract where the tokens will be migrated
     uint256 private _totalUpgraded;                          // How many tokens we have upgraded by now
@@ -21,11 +27,12 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     mapping(address => uint256) private _balances;
     uint256 private _totalSupply;
 
-    string private _name;
-    string private _symbol;
+    string constant public name = "Mysterium";
+    string constant public symbol = "MYST";
+    uint8 constant public decimals = 18;
 
     // EIP712
-    bytes32 public DOMAIN_SEPARATOR;
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
@@ -48,12 +55,9 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     event UpgradeMasterSet(address master);
 
     constructor(address originalToken) public {
-        _name = "Mysterium";
-        _symbol = "MYST";
-
         // upgradability settings
         _originalToken  = originalToken;
-        _originalSupply = IERC20(_originalToken).totalSupply();
+        _originalSupply = IERC20(originalToken).totalSupply();
 
         // set upgrade master
         _upgradeMaster = _msgSender();
@@ -62,24 +66,12 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
-                keccak256(bytes(_name)),
+                keccak256(bytes(name)),
                 keccak256(bytes('1')),
                 _chainID(),
                 address(this)
             )
         );
-    }
-
-    function name() public view returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view returns (string memory) {
-        return _symbol;
-    }
-
-    function decimals() public pure returns (uint8) {
-        return 18;
     }
 
     function totalSupply() public view override(IERC20) returns (uint256) {
@@ -199,18 +191,13 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         return _originalSupply;
     }
 
-    /** Interface marker */
-    function isUpgradeAgent() public override pure returns (bool) {
-        return true;
-    }
-
     function upgradeFrom(address _account, uint256 _value) public override {
         require(msg.sender == originalToken(), "only original token can call upgradeFrom");
 
         // Value is multiplied by 0e10 as old token had decimals = 8?
-        _mint(_account, _value.mul(10000000000));
+        _mint(_account, _value.mul(DECIMAL_OFFSET));
 
-        require(totalSupply() <= originalSupply().mul(10000000000), "can not mint more tokens than in original contract");
+        require(totalSupply() <= originalSupply().mul(DECIMAL_OFFSET), "can not mint more tokens than in original contract");
     }
 
 
@@ -235,7 +222,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         UpgradeState state = getUpgradeState();
         require(state == UpgradeState.ReadyToUpgrade || state == UpgradeState.Upgrading, "MYST: token is not in upgrading state");
 
-        require(amount > 0, "MYST: upgradable amount should be more than 0");
+        require(amount != 0, "MYST: upgradable amount should be more than 0");
 
         address holder = _msgSender();
 
@@ -260,7 +247,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
 
     function setUpgradeAgent(address agent) external {
         require(_msgSender()== _upgradeMaster, "MYST: only a master can designate the next agent");
-        require(agent != address(0x0));
+        require(agent != address(0x0), "MYST: upgrade agent can't be zero address");
         require(getUpgradeState() != UpgradeState.Upgrading, "MYST: upgrade has already begun");
 
         _upgradeAgent = IUpgradeAgent(agent);
@@ -289,7 +276,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
      */
     function setFundsDestination(address newDestination) public {
         require(_msgSender()== _upgradeMaster, "MYST: only a master can set funds destination");
-        require(newDestination != address(0));
+        require(newDestination != address(0), "MYST: funds destination can't be zero addreess");
 
         _fundsDestination = newDestination;
         emit FundsRecoveryDestinationChanged(_fundsDestination, newDestination);
@@ -302,7 +289,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     }
 
     /**
-       Transfers selected tokens into owner address.
+       Transfers selected tokens into `_fundsDestination` address.
     */
     function claimTokens(address token) public {
         require(_fundsDestination != address(0));
