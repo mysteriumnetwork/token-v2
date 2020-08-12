@@ -100,6 +100,16 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
         return true;
     }
 
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+        return true;
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        return true;
+    }
+
     /**
      * ERC2612 `permit`: 712-signed token approvals
      */
