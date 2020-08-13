@@ -302,7 +302,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
        Transfers selected tokens into `_fundsDestination` address.
     */
     function claimTokens(address token) public {
-        require(_fundsDestination != address(0));
+        require(_fundsDestination != address(0), "MYST: funds destination can't be zero addreess");
         uint256 amount = IERC20(token).balanceOf(address(this));
         IERC20(token).transfer(_fundsDestination, amount);
     }
