@@ -9,8 +9,9 @@ const MystToken = artifacts.require("MystToken")
 const NextToken = artifacts.require("NextToken")
 const OriginalMystToken = artifacts.require("OriginalMystToken")
 const RandomContract = artifacts.require("RandomContract")
+const MigratorContract = artifacts.require("MystMigrator")
 
-const OneToken = web3.utils.toWei(new BN('100000000'), 'wei')  // In original contract MYST had 8 decimals
+const OneToken = OneEther = web3.utils.toWei(new BN('100000000'), 'wei')  // In original contract MYST had 8 decimals
 const HalfToken = web3.utils.toWei(new BN('50000000'), 'wei')
 const Multiplier = new BN('10000000000')                       // New token has 18 zeros instead of 8
 const Zero = new BN(0)
@@ -24,16 +25,19 @@ const states = {
     completed: new BN(5)
 }
 
-contract('Original to new token migration', ([txMaker, addressOne, addressTwo, addressThree, ...otherAddresses]) => {
-    let token, originalToken, tokenSupply
+contract('Original to new token migration', ([txMaker, addressOne, addressTwo, addressThree, addressFour, ...otherAddresses]) => {
+    let token, originalToken, migrator, tokenSupply
     before(async () => {
         originalToken = await OriginalMystToken.new()
         await originalToken.mint(addressOne, OneToken)
         await originalToken.mint(addressTwo, OneToken)
         await originalToken.mint(addressThree, OneToken)
+        await originalToken.mint(addressFour, OneToken)
         tokenSupply = await originalToken.totalSupply()
 
         token = await MystToken.new(originalToken.address)
+
+        migrator = await MigratorContract.new(originalToken.address, token.address, addressFour)
     })
 
     it('should fail migration when it is not enabled', async () => {
@@ -101,6 +105,27 @@ contract('Original to new token migration', ([txMaker, addressOne, addressTwo, a
         await originalToken.upgrade(HalfToken, { from: addressThree }).should.be.rejected
     })
 
+    it('should migrate properly via migrator contract', async () => {
+        const initialBalance = await originalToken.balanceOf(addressFour)
+
+        // Migrate first half of tokens
+        await originalToken.transfer(migrator.address, HalfToken, { from: addressFour })
+        await web3.eth.sendTransaction({ from: addressOne, to: migrator.address, value: Zero, gas: 150000 })
+        expect(await originalToken.balanceOf(addressFour)).to.be.bignumber.equal(initialBalance.sub(HalfToken))
+        expect(await token.balanceOf(addressFour)).to.be.bignumber.equal(HalfToken.mul(Multiplier))
+
+        // Migrate second part of tokens and ensure that etheres were sent back
+        await originalToken.transfer(migrator.address, HalfToken, { from: addressFour })
+        await web3.eth.sendTransaction({ from: addressOne, to: migrator.address, value: OneEther, gas: 150000 })
+        expect(await originalToken.balanceOf(addressFour)).to.be.bignumber.equal(Zero)
+
+        // Holder should have all his tokens on new token
+        expect(await token.balanceOf(addressFour)).to.be.bignumber.equal(initialBalance.mul(Multiplier))
+
+        // Migrator should return all ethers back to sender
+        expect(await web3.eth.getBalance(migrator.address)).to.be.bignumber.equal(Zero)
+    })
+
     it('should fail setting upgrade agent while in upgrading stage', async () => {
         const nextToken = await MystToken.new(token.address)
         await originalToken.setUpgradeAgent(nextToken.address).should.be.rejected
@@ -140,7 +165,7 @@ contract('Migration of new token', ([txMaker, addressOne, addressTwo, addressThr
         // Enable token migration for original ERC20 token
         await originalToken.setUpgradeAgent(token.address)
 
-        // Migrate tokens into ERC777 token
+        // Migrate tokens into new token
         const addressOneBalance = await originalToken.balanceOf(addressOne)
         await originalToken.upgrade(addressOneBalance, { from: addressOne })
 

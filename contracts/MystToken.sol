@@ -228,7 +228,7 @@ contract MystToken is Context, IERC20, IUpgradeAgent {
     /**
      * Tokens can be upgraded by calling this function.
      */
-    function upgrade(uint256 amount) public {
+    function upgrade(uint256 amount) public override {
         UpgradeState state = getUpgradeState();
         require(state == UpgradeState.ReadyToUpgrade || state == UpgradeState.Upgrading, "MYST: token is not in upgrading state");
 
