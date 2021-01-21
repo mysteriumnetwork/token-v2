@@ -7,7 +7,7 @@ import "./utils/SafeMath.sol";
 contract MystMigrator {
     using SafeMath for uint256;
 
-    address immutable _beneficiary; // address which will receive migrated tokens
+    address internal _beneficiary; // address which will receive migrated tokens
     IERC20 public _legacyToken; // legacy MYST token
     IERC20 public _token; // new MYST token
 
@@ -39,9 +39,39 @@ contract MystMigrator {
         }
     }
 
-    // Will call upgrade in legacy MYST token contract.
-    // This will upgrade given amount of holded by this smart contract legacyMYST into new MYST
+    /**
+     * Will call upgrade in legacy MYST token contract.
+     * This will upgrade given amount of holded by this smart contract legacyMYST into new MYST
+     */
     function upgrade(uint256 amount) public {
         _legacyToken.upgrade(amount);
+    }
+
+    /**
+     * Setting new beneficiary of funds.
+     */
+    function setBeneficiary(address newBeneficiary) public {
+        require(
+            msg.sender == _beneficiary,
+            "Only a current beneficiary can set new one"
+        );
+        require(
+            newBeneficiary != address(0),
+            "Beneficiary can't be zero addreess"
+        );
+
+        _beneficiary = newBeneficiary;
+    }
+
+    /**
+       Transfers selected tokens into `_beneficiary` address.
+    */
+    function claimTokens(address token) public {
+        require(
+            _beneficiary != address(0),
+            "Beneficiary can't be zero addreess"
+        );
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        IERC20(token).transfer(_beneficiary, amount);
     }
 }
