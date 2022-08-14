@@ -27,7 +27,7 @@
     },
     "homepage": "https://github.com/mysteriumnetwork/token-v2#readme",
     "dependencies": {
-        "@openzeppelin/contracts": "3.1.0",
+        "@openzeppelin/contracts": "4.7.2",
         "@openzeppelin/test-helpers": "0.5.6",
         "bn.js": "5.1.2",
         "chai": "4.2.0",
